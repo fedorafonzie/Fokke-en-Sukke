@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
 from datetime import datetime, timezone
+import re  # <-- Deze regel is nieuw
 
 print("Script gestart: Ophalen van de Fokke & Sukke strip via nrc.nl.")
 
@@ -19,12 +20,20 @@ try:
     # Gebruik BeautifulSoup om de HTML te parsen
     soup = BeautifulSoup(response.content, 'html.parser')
     
-    # Zoek naar de eerste image wrapper (dit bevat de nieuwste strip)
-    # Gebaseerd op de screenshot is dit de container
-    wrapper = soup.find('div', class_='nmt-item_image-wrapper')
+    # --- AANGEPASTE LOGICA ---
+    # We zoeken nu specifieker: vind een <a> tag waarvan de 'href' (link)
+    # de tekst '/fokke-sukke-' bevat. Dit is veel specifieker.
+    link_tag = soup.find('a', href=re.compile(r'/fokke-sukke-'))
+    
+    if not link_tag:
+        raise ValueError("Kon geen <a> tag vinden met '/fokke-sukke-' in de href. Structuur mogelijk gewijzigd.")
+
+    # Zoek nu *binnen* deze gevonden link naar de image wrapper
+    wrapper = link_tag.find('div', class_='nmt-item_image-wrapper')
     
     if not wrapper:
-        raise ValueError("Kon de <div> met class='nmt-item_image-wrapper' niet vinden. De paginastructuur is mogelijk gewijzigd.")
+         raise ValueError(f"Kon de <div> met class='nmt-item_image-wrapper' *binnen* de gevonden link niet vinden. Href was: {link_tag.get('href')}")
+    # --- EINDE AANGEPASTE LOGICA ---
 
     # Zoek de <img> tag binnen deze wrapper
     img_tag = wrapper.find('img')
